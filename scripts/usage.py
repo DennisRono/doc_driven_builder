@@ -19,7 +19,7 @@ def run_inference():
     print("Generated Text:", text)
 
 def run_evaluation():
-    model, config, meta = ModelLoader.loadmodelfromcheckpoint(CHECKPOINT)
+    model, config, meta = ModelLoader.load_model_from_checkpoint(CHECKPOINT)
     tokenizer = Tokenizer.loadstr(TOKENIZER)
     evaluator = ModelEvaluator(model, tokenizer)
     perplexity = evaluator.evaluateperplexity(TEST_TEXTS)

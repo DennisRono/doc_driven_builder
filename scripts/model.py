@@ -8,7 +8,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ModelConfig:
     """Configuration for the transformer model."""
