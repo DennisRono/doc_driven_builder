@@ -253,7 +253,6 @@ def main():
         texts = load_documentation_files(args.data)
     else:
         texts = create_sample_documentation()
-        logger.info("Using sample documentation")
 
     if not texts:
         logger.error("No documentation texts loaded")

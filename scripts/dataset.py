@@ -37,7 +37,6 @@ class Tokenizer:
 
     def build_vocab(self, texts: List[str]) -> None:
         """Build vocabulary with subword tokenization support."""
-        logger.info("Building enhanced vocabulary...")
 
         for text in texts:
             words = self._basic_tokenize(text)
@@ -48,8 +47,6 @@ class Tokenizer:
             self._build_subword_vocab()
         else:
             self._build_word_vocab()
-
-        logger.info(f"Built vocabulary with {len(self.word_to_idx)} tokens")
 
     def _basic_tokenize(self, text: str) -> List[str]:
         """Enhanced tokenization preserving important patterns."""
