@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from model import EnhancedDocumentationModel, ModelConfig
+from model import DocumentationModel, ModelConfig
 from dataset import Tokenizer
 from model_inference import ModelLoader, TextGenerator, GenerationConfig
 
@@ -30,7 +30,7 @@ class EvaluationResults:
 class ModelEvaluator:
     """Comprehensive model evaluation suite."""
     
-    def __init__(self, model: EnhancedDocumentationModel, tokenizer: Tokenizer):
+    def __init__(self, model: DocumentationModel, tokenizer: Tokenizer):
         self.model = model
         self.tokenizer = tokenizer
         self.device = next(model.parameters()).device

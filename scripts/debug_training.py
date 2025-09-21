@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from dataset import create_data_loaders, Tokenizer, DataConfig
-from model import EnhancedDocumentationModel, ModelConfig
+from model import DocumentationModel, ModelConfig
 from training import Trainer, TrainingConfig
 
 
@@ -15,7 +15,6 @@ def setup_logging():
 
 
 def create_sample_data():
-    """Create minimal sample data for testing."""
     return [
         "Create a function using def keyword in Python.",
         "Import torch for PyTorch neural networks.",
@@ -50,7 +49,7 @@ def main():
         texts, tokenizer, data_config
     )
 
-    model = EnhancedDocumentationModel(model_config)
+    model = DocumentationModel(model_config)
     trainer = Trainer(model, model_config, training_config, "debug_checkpoints")
 
     trainer.debug_single_batch(train_loader)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import time
 import numpy as np
 
-from model import EnhancedDocumentationModel, ModelConfig
+from model import DocumentationModel, ModelConfig
 from dataset import Tokenizer
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class ModelLoader:
     """Utility class for loading trained models from checkpoints."""
     
     @staticmethod
-    def load_model_from_checkpoint(checkpoint_path: str, device: str = 'auto') -> Tuple[EnhancedDocumentationModel, ModelConfig, Dict]:
+    def load_model_from_checkpoint(checkpoint_path: str, device: str = 'auto') -> Tuple[DocumentationModel, ModelConfig, Dict]:
         """Load model from checkpoint with full configuration."""
         if device == 'auto':
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -48,7 +48,7 @@ class ModelLoader:
         model_config_dict = checkpoint.get('model_config', {})
         model_config = ModelConfig(**model_config_dict)
         
-        model = EnhancedDocumentationModel(model_config)
+        model = DocumentationModel(model_config)
         model.load_state_dict(checkpoint['model_state_dict'])
         model.to(device)
         model.eval()
@@ -73,7 +73,7 @@ class ModelLoader:
 class TextGenerator:
     """Advanced text generation with multiple sampling strategies."""
     
-    def __init__(self, model: EnhancedDocumentationModel, tokenizer: Tokenizer, 
+    def __init__(self, model: DocumentationModel, tokenizer: Tokenizer, 
                  device: str = 'auto'):
         self.model = model
         self.tokenizer = tokenizer
@@ -227,7 +227,7 @@ class TextGenerator:
 class ModelAnalyzer:
     """Comprehensive model analysis and introspection tools."""
     
-    def __init__(self, model: EnhancedDocumentationModel, tokenizer: Tokenizer):
+    def __init__(self, model: DocumentationModel, tokenizer: Tokenizer):
         self.model = model
         self.tokenizer = tokenizer
         self.device = next(model.parameters()).device
@@ -303,7 +303,7 @@ class ModelAnalyzer:
 class BatchInference:
     """Efficient batch inference for processing multiple texts."""
     
-    def __init__(self, model: EnhancedDocumentationModel, tokenizer: Tokenizer, 
+    def __init__(self, model: DocumentationModel, tokenizer: Tokenizer, 
                  batch_size: int = 8):
         self.model = model
         self.tokenizer = tokenizer

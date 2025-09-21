@@ -12,7 +12,7 @@ TEST_TEXTS = ["This is a test.", "Another test sentence."]
 PROMPT = "Hello world, generate text about AI"
 
 def run_inference():
-    model, config, meta = ModelLoader.loadmodelfromcheckpoint(CHECKPOINT)
+    model, config, meta = ModelLoader.load_model_from_checkpoint(CHECKPOINT)
     tokenizer = Tokenizer.loadstr(TOKENIZER)
     gen = TextGenerator(model, tokenizer)
     text, _, _, _ = gen.generate(PROMPT)

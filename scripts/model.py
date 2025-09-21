@@ -4,6 +4,9 @@ import torch.nn.functional as F
 import math
 from typing import Optional, Tuple
 from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -45,10 +48,69 @@ class MultiHeadAttention(nn.Module):
 
         self.scale = math.sqrt(self.head_dim)
 
+    def _prepare_mask_for_scores(
+        self, mask: torch.Tensor, batch_size: int, seq_len: int
+    ) -> torch.BoolTensor:
+        """
+        Normalize mask into boolean tensor of shape [batch_size, nhead, seq_len, seq_len].
+        Accepts:
+          - mask shape [seq_len, seq_len]
+          - mask shape [batch_size, seq_len, seq_len]
+          - mask shape [batch_size, 1, seq_len, seq_len]
+          - mask shape [1, 1, seq_len, seq_len]
+        """
+        if mask is None:
+            return None
+
+        mask_bool = mask.bool()
+
+        if mask_bool.dim() == 2:
+
+            mask_b = (
+                mask_bool.unsqueeze(0)
+                .unsqueeze(0)
+                .expand(batch_size, self.nhead, seq_len, seq_len)
+            )
+            return mask_b
+
+        if mask_bool.dim() == 3:
+
+            if mask_bool.shape[0] != batch_size:
+
+                mask_b = mask_bool.unsqueeze(1).expand(
+                    batch_size, self.nhead, seq_len, seq_len
+                )
+                return mask_b
+            else:
+                return mask_bool.unsqueeze(1).expand(
+                    batch_size, self.nhead, seq_len, seq_len
+                )
+
+        if mask_bool.dim() == 4:
+
+            b, h, s1, s2 = mask_bool.shape
+            if s1 != seq_len or s2 != seq_len:
+                raise ValueError(
+                    f"Mask spatial dims ({s1},{s2}) don't match seq_len={seq_len}"
+                )
+            if b == batch_size and h == self.nhead:
+                return mask_bool
+            if b == batch_size and h == 1:
+                return mask_bool.expand(batch_size, self.nhead, seq_len, seq_len)
+            if b == 1 and h == 1:
+                return mask_bool.expand(batch_size, self.nhead, seq_len, seq_len)
+
+            return mask_bool.expand(batch_size, self.nhead, seq_len, seq_len)
+
+        raise ValueError(f"Unsupported mask shape {mask.shape}")
+
     def forward(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         batch_size, seq_len, d_model = x.shape
+
+        logger.info(f"[MHA] Input x shape: {x.shape}")
+        logger.info(f"[MHA] batch={batch_size}, seq_len={seq_len}, d_model={d_model}")
 
         q = (
             self.q_proj(x)
@@ -66,18 +128,42 @@ class MultiHeadAttention(nn.Module):
             .transpose(1, 2)
         )
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale
+        logger.info(f"[MHA] q shape: {q.shape}, k shape: {k.shape}, v shape: {v.shape}")
 
+        scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale
+        logger.info(f"[MHA] scores shape (before mask): {scores.shape}")
+
+        mask_for_scores = None
         if mask is not None:
-            scores = scores.masked_fill(mask.unsqueeze(1).unsqueeze(1), float("-inf"))
+            try:
+                mask_for_scores = self._prepare_mask_for_scores(
+                    mask, batch_size, seq_len
+                )
+                logger.info(
+                    f"[MHA] mask_for_scores shape (after prepare): {mask_for_scores.shape}"
+                )
+            except Exception as e:
+                logger.exception("[MHA] error preparing mask for scores")
+                raise
+
+            scores = scores.masked_fill(mask_for_scores, float("-inf"))
 
         attn_weights = F.softmax(scores, dim=-1)
         attn_weights = self.attention_dropout(attn_weights)
 
         attn_output = torch.matmul(attn_weights, v)
-        attn_output = (
-            attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)
+        logger.info(f"[MHA] attn_output shape (before transpose): {attn_output.shape}")
+
+        attn_output_t = attn_output.transpose(1, 2).contiguous()
+        logger.info(
+            f"[MHA] attn_output_t shape (after transpose): {attn_output_t.shape}"
         )
+        logger.info(
+            f"[MHA] attn_output_t numel={attn_output_t.numel()}, expected={batch_size*seq_len*d_model}"
+        )
+
+        attn_output = attn_output_t.view(batch_size, seq_len, d_model)
+        logger.info(f"[MHA] attn_output (final) shape: {attn_output.shape}")
 
         output = self.out_proj(attn_output)
         return self.dropout(output)
@@ -182,7 +268,7 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class EnhancedDocumentationModel(nn.Module):
+class DocumentationModel(nn.Module):
     """Enhanced transformer model with modern architecture features."""
 
     def __init__(self, config: ModelConfig):
@@ -210,12 +296,10 @@ class EnhancedDocumentationModel(nn.Module):
         """Initialize model weights using modern best practices."""
         for module in self.modules():
             if isinstance(module, nn.Linear):
-
                 nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
             elif isinstance(module, nn.Embedding):
-
                 nn.init.normal_(module.weight, mean=0.0, std=0.02)
             elif isinstance(module, nn.LayerNorm):
                 nn.init.ones_(module.weight)
@@ -235,19 +319,24 @@ class EnhancedDocumentationModel(nn.Module):
         device = input_ids.device
 
         x = self.token_embedding(input_ids) * math.sqrt(self.d_model)
-
         x = self.pos_encoding(x)
 
         causal_mask = self.create_causal_mask(seq_len, device)
 
+        mask_to_pass = causal_mask
         if attention_mask is not None:
 
             extended_mask = attention_mask.unsqueeze(1).unsqueeze(1)
-            extended_mask = (1.0 - extended_mask) * -10000.0
-            causal_mask = causal_mask.unsqueeze(0).unsqueeze(0) | (extended_mask < -1)
+
+            token_mask = extended_mask == 0
+
+            causal_b = causal_mask.unsqueeze(0).unsqueeze(1)
+
+            token_mask_broadcast = token_mask.expand(-1, -1, seq_len, -1)
+            mask_to_pass = causal_b | token_mask_broadcast
 
         for block in self.blocks:
-            x = block(x, causal_mask)
+            x = block(x, mask_to_pass)
 
         x = self.final_norm(x)
         logits = self.output_projection(x)

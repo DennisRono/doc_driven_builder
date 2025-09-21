@@ -13,7 +13,7 @@ from dataset import (
     DataConfig,
     create_data_loaders,
 )
-from model import EnhancedDocumentationModel, ModelConfig
+from model import DocumentationModel, ModelConfig
 from training import Trainer, TrainingConfig
 from evaluation import ModelEvaluator, InstructionTestSuite
 
@@ -63,7 +63,7 @@ class TextGenerator:
 
     def __init__(
         self,
-        model: EnhancedDocumentationModel,
+        model: DocumentationModel,
         tokenizer: Tokenizer,
         device: torch.device,
     ):
@@ -259,12 +259,11 @@ def main():
     tokenizer = Tokenizer(model_config.vocab_size)
     tokenizer.build_vocab(texts)
 
-    model = EnhancedDocumentationModel(model_config)
+    model = DocumentationModel(model_config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     if args.command == "train":
-
         train_loader, val_loader, test_loader = create_data_loaders(
             texts, tokenizer, data_config
         )
@@ -300,7 +299,6 @@ def main():
         print(f"Generated: {generated_text}")
 
     elif args.command == "evaluate":
-
         if args.checkpoint:
             checkpoint = torch.load(args.checkpoint, map_location=device)
             model.load_state_dict(checkpoint["model_state_dict"])

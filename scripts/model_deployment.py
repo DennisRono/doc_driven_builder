@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from dataset import Tokenizer
-from model import EnhancedDocumentationModel, ModelConfig
+from model import DocumentationModel, ModelConfig
 from model_inference import (
     GenerationConfig,
     ModelLoader,
@@ -262,12 +262,12 @@ class ModelPackager:
             # NOTE: change these imports to the correct module names if your model & tokenizer
             # classes are stored in a package in the deployment bundle.
             try:
-                from model import EnhancedDocumentationModel, ModelConfig
+                from model import DocumentationModel, ModelConfig
                 from dataset import Tokenizer
             except Exception:
                 # Fallback: try the original project module names used during packaging
                 try:
-                    from scripts.model import EnhancedDocumentationModel, ModelConfig
+                    from scripts.model import DocumentationModel, ModelConfig
                     from scripts.dataset import Tokenizer
                 except Exception:
                     raise ImportError("Could not import model/tokenizer classes. Adjust import paths in deploy.py.")
@@ -286,7 +286,7 @@ class ModelPackager:
                     model_config = ModelConfig(**model_cfg_dict) if model_cfg_dict else ModelConfig()
 
                     # instantiate model and load state
-                    self.model = EnhancedDocumentationModel(model_config)
+                    self.model = DocumentationModel(model_config)
                     self.model.load_state_dict(checkpoint["model_state_dict"])
                     self.model.to(self.device)
                     self.model.eval()

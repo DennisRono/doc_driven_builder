@@ -1,23 +1,19 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.cuda.amp import autocast
-from torch.amp import GradScaler
-from torch.utils.data import DataLoader
-import os
-import json
 import time
 import math
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+import torch
 import logging
+import torch.nn as nn
+from pathlib import Path
+import torch.optim as optim
+from evaluation import ModelEvaluator
+from torch.utils.data import DataLoader
+from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-
-from model import EnhancedDocumentationModel, ModelConfig
-from evaluation import ModelEvaluator, EvaluationMetrics
+from torch.cuda.amp import autocast
+from torch.amp import GradScaler
+from model import DocumentationModel, ModelConfig
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class TrainingConfig:
@@ -48,7 +44,6 @@ class LearningRateScheduler:
         self.total_steps = total_steps
         self.current_step = 0
         self.base_lr = config.learning_rate
-
         self.warmup_steps = min(config.warmup_steps, max(total_steps // 10, 1))
 
     def step(self):
@@ -167,7 +162,7 @@ class Trainer:
 
     def __init__(
         self,
-        model: EnhancedDocumentationModel,
+        model: DocumentationModel,
         model_config: ModelConfig,
         training_config: TrainingConfig,
         checkpoint_dir: str = "checkpoints",
@@ -244,7 +239,7 @@ class Trainer:
 
                 train_metrics = self._train_epoch(train_loader, scheduler)
                 history["train_loss"].append(train_metrics["loss"])
-
+                
                 current_lr = self.optimizer.param_groups[0]["lr"]
                 history["learning_rate"].append(current_lr)
 
@@ -410,60 +405,51 @@ class Trainer:
     def debug_single_batch(self, train_loader: DataLoader) -> None:
         """Debug helper - run one batch and check gradients/parameter changes."""
         logger.info("=== DEBUG: Running single batch ===")
-
+        
         self.model.train()
         self.optimizer.zero_grad()
-
+        
         # Get first batch
         batch = next(iter(train_loader))
         input_ids = batch["input_ids"].to(self.device)
         target_ids = batch["target_ids"].to(self.device)
         attention_mask = batch["attention_mask"].to(self.device)
-
+        
         # Store initial parameters
-        initial_params = {
-            name: param.clone() for name, param in self.model.named_parameters()
-        }
-
+        initial_params = {name: param.clone() for name, param in self.model.named_parameters()}
+        
         # Forward pass
         outputs = self.model(input_ids, attention_mask)
-        loss = self.criterion(
-            outputs.reshape(-1, outputs.size(-1)), target_ids.reshape(-1)
-        )
-
+        loss = self.criterion(outputs.reshape(-1, outputs.size(-1)), target_ids.reshape(-1))
+        
         logger.info(f"Initial loss: {loss.item():.6f}")
         logger.info(f"LR: {self.optimizer.param_groups[0]['lr']:.2e}")
-
+        
         # Backward pass
         loss.backward()
-
+        
         # Check gradients
-        has_grads = any(
-            p.grad is not None and p.grad.abs().sum() > 0
-            for p in self.model.parameters()
-        )
+        has_grads = any(p.grad is not None and p.grad.abs().sum() > 0 for p in self.model.parameters())
         logger.info(f"Has gradients: {has_grads}")
-
+        
         if has_grads:
-            grad_norm = torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(), float("inf")
-            )
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), float('inf'))
             logger.info(f"Gradient norm: {grad_norm:.6f}")
-
+        
         # Optimizer step
         self.optimizer.step()
-
+        
         # Check parameter changes
         param_changes = []
         for name, param in self.model.named_parameters():
             if name in initial_params:
                 change = (param - initial_params[name]).abs().sum().item()
                 param_changes.append((name, change))
-
+        
         # Show top 5 parameter changes
         param_changes.sort(key=lambda x: x[1], reverse=True)
         logger.info("Top parameter changes:")
         for name, change in param_changes[:5]:
             logger.info(f"  {name}: {change:.8f}")
-
+        
         logger.info("=== DEBUG: Single batch complete ===")

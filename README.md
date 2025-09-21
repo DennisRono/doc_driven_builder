@@ -5,13 +5,10 @@ A PyTorch-based system that learns from technical documentation to generate cont
 ## Quick Start
 
 ```bash
-# Install dependencies
 make install
 
-# Run complete demo
 make demo
 
-# Generate text with custom prompt
 make generate-custom PROMPT="How to implement attention mechanism:"
 ```
 
@@ -29,33 +26,26 @@ make generate-custom PROMPT="How to implement attention mechanism:"
 ### Training
 
 ```bash
-# Train on sample documentation
 make train
 
-# Train on custom documentation
 make train-custom DOC_PATH=path/to/your/docs
 
-# Resume from checkpoint
 make resume
 ```
 
 ### Generation
 
 ```bash
-# Interactive mode
 make interactive
 
-# Batch generation
 make generate-custom PROMPT="Explain neural networks:"
 ```
 
 ### Evaluation
 
 ```bash
-# Full evaluation
 make evaluate
 
-# Perplexity only
 make perplexity
 ```
 
