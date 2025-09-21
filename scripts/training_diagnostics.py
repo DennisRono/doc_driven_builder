@@ -331,7 +331,7 @@ def main():
             sys.exit(1)
         
         try:
-            checkpoint = torch.load(args.checkpoint, map_location=device)
+            checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
             logger.info("Loaded checkpoint successfully")
         except Exception as e:
             logger.error(f"Failed to load checkpoint: {e}")

@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ModelConfig:
     """Configuration for the transformer model."""
@@ -107,10 +108,6 @@ class MultiHeadAttention(nn.Module):
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         batch_size, seq_len, d_model = x.shape
-
-        logger.info(f"[MHA] Input x shape: {x.shape}")
-        logger.info(f"[MHA] batch={batch_size}, seq_len={seq_len}, d_model={d_model}")
-
         q = (
             self.q_proj(x)
             .view(batch_size, seq_len, self.nhead, self.head_dim)
@@ -127,10 +124,7 @@ class MultiHeadAttention(nn.Module):
             .transpose(1, 2)
         )
 
-        logger.info(f"[MHA] q shape: {q.shape}, k shape: {k.shape}, v shape: {v.shape}")
-
         scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale
-        logger.info(f"[MHA] scores shape (before mask): {scores.shape}")
 
         mask_for_scores = None
         if mask is not None:
@@ -138,9 +132,7 @@ class MultiHeadAttention(nn.Module):
                 mask_for_scores = self._prepare_mask_for_scores(
                     mask, batch_size, seq_len
                 )
-                logger.info(
-                    f"[MHA] mask_for_scores shape (after prepare): {mask_for_scores.shape}"
-                )
+
             except Exception as e:
                 logger.exception("[MHA] error preparing mask for scores")
                 raise
@@ -151,18 +143,10 @@ class MultiHeadAttention(nn.Module):
         attn_weights = self.attention_dropout(attn_weights)
 
         attn_output = torch.matmul(attn_weights, v)
-        logger.info(f"[MHA] attn_output shape (before transpose): {attn_output.shape}")
 
         attn_output_t = attn_output.transpose(1, 2).contiguous()
-        logger.info(
-            f"[MHA] attn_output_t shape (after transpose): {attn_output_t.shape}"
-        )
-        logger.info(
-            f"[MHA] attn_output_t numel={attn_output_t.numel()}, expected={batch_size*seq_len*d_model}"
-        )
 
         attn_output = attn_output_t.view(batch_size, seq_len, d_model)
-        logger.info(f"[MHA] attn_output (final) shape: {attn_output.shape}")
 
         output = self.out_proj(attn_output)
         return self.dropout(output)

@@ -107,16 +107,14 @@ eval-comprehensive:
 
 # Generation commands
 generate:
-	python scripts/model.py generate \
+	python scripts/utils.py generate \
 		--checkpoint checkpoints/model.pt \
 		--prompt "How to implement a neural network:" \
-		--max_length 200
 
 generate-custom:
-	python scripts/model.py generate \
+	python scripts/utils.py generate \
 		--checkpoint checkpoints/model.pt \
 		--prompt "$(PROMPT)" \
-		--max_length 200
 
 interactive:
 	python scripts/model.py interactive \
@@ -137,7 +135,7 @@ import torch; \
 import matplotlib.pyplot as plt; \
 import os; \
 try: \
-    checkpoint = torch.load('checkpoints/model.pt', map_location='cpu'); \
+    checkpoint = torch.load('checkpoints/model.pt', map_location='cpu', weights_only=False); \
     history = checkpoint.get('history', {}); \
     if history: \
         plt.figure(figsize=(12, 8)); \

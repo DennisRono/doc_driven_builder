@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union
 import torch
 from dataclasses import asdict
+from torch.serialization import add_safe_globals
+from improved_training import ImprovedTrainingConfig
 
 from dataset import (
     MultiFormatDataProcessor,
@@ -17,6 +19,7 @@ from model import DocumentationModel, ModelConfig
 from training import Trainer, TrainingConfig
 from evaluation import ModelEvaluator, InstructionTestSuite
 
+add_safe_globals([ModelConfig])
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None):
     """Setup logging configuration."""
@@ -287,7 +290,7 @@ def main():
             return
 
         if args.checkpoint:
-            checkpoint = torch.load(args.checkpoint, map_location=device)
+            checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
             model.load_state_dict(checkpoint["model_state_dict"])
 
         generator = TextGenerator(model, tokenizer, device)
@@ -300,7 +303,7 @@ def main():
 
     elif args.command == "evaluate":
         if args.checkpoint:
-            checkpoint = torch.load(args.checkpoint, map_location=device)
+            checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
             model.load_state_dict(checkpoint["model_state_dict"])
 
         _, _, test_loader = create_data_loaders(texts, tokenizer, data_config)

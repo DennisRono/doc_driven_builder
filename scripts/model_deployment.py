@@ -281,7 +281,7 @@ class ModelPackager:
                         self.package_config = json.load(f)
 
                     # load checkpoint
-                    checkpoint = torch.load(model_path, map_location=self.device)
+                    checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
                     model_cfg_dict = checkpoint.get("model_config", {{}})
                     model_config = ModelConfig(**model_cfg_dict) if model_cfg_dict else ModelConfig()
 

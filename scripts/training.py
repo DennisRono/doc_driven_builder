@@ -12,8 +12,11 @@ from dataclasses import dataclass, asdict
 from torch.cuda.amp import autocast
 from torch.amp import GradScaler
 from model import DocumentationModel, ModelConfig
+from torch.serialization import add_safe_globals
 
 logger = logging.getLogger(__name__)
+
+add_safe_globals([ModelConfig])
 
 @dataclass
 class TrainingConfig:
@@ -140,7 +143,7 @@ class ModelCheckpoint:
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-        checkpoint_data = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint_data = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
 
         model.load_state_dict(checkpoint_data["model_state_dict"])
 
