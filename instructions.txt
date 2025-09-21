@@ -1,0 +1,19 @@
+# Documentation-Driven Language Model Training System
+# Complete Usage Instructions
+
+## Quick Start
+1. Run `make setup` to install dependencies and prepare environment
+3. Run `make lr-test` to find optimal learning rate
+4. Run `make train-improved` to start training with optimized settings
+5. Run `make evaluate` to assess model performance
+
+## Detailed Setup Instructions
+
+### 1. Environment Setup
+```bash
+# Install dependencies
+make setup
+
+# Verify installation
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+python -c "import transformers; print('Transformers installed')"
