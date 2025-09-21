@@ -1,0 +1,7 @@
+Learning Rate Range Test Results
+================================
+Suggested LR: 4.17e-03
+Min LR tested: 1.00e-07
+Max LR tested: 8.71e-02
+Min loss: 4.8107
+Iterations: 100

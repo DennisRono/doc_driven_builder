@@ -444,7 +444,6 @@ def main():
         training_config = ImprovedTrainingConfig(
             learning_rate=args.learning_rate,
             lr_floor_ratio=args.lr_floor / args.learning_rate,
-            batch_size=args.batch_size,
             epochs=args.epochs,
             use_ema=args.use_ema,
             label_smoothing=args.label_smoothing,
