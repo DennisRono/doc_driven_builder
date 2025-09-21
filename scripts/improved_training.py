@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,6 +9,7 @@ import math
 from dataclasses import dataclass
 from training import Trainer, TrainingConfig, LearningRateScheduler
 from model import DocumentationModel, ModelConfig
+from dataset import MultiFormatDataProcessor, Tokenizer, DataConfig, create_data_loaders
 
 logger = logging.getLogger(__name__)
 
@@ -334,3 +336,228 @@ class LabelSmoothingCrossEntropy(nn.Module):
         
         # Average over non-ignored tokens
         return loss.sum() / mask.sum().float()
+
+def main():
+    """Main function with proper CLI interface."""
+    import argparse
+    import os
+    import sys
+    from pathlib import Path
+    
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('logs/improved_training.log'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    parser = argparse.ArgumentParser(description='Enhanced model training with research-backed improvements')
+    parser.add_argument('--data', type=str, required=True, help='Path to training data directory')
+    parser.add_argument('--output_dir', type=str, default='checkpoints', help='Output directory for models')
+    parser.add_argument('--log_dir', type=str, default='logs', help='Log directory')
+    parser.add_argument('--learning_rate', type=float, default=3e-4, help='Learning rate')
+    parser.add_argument('--lr_floor', type=float, default=1e-6, help='Learning rate floor')
+    parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of epochs')
+    parser.add_argument('--use_ema', action='store_true', help='Use EMA averaging')
+    parser.add_argument('--label_smoothing', type=float, default=0.0, help='Label smoothing factor')
+    parser.add_argument('--scheduler_type', type=str, default='cosine', choices=['cosine', 'linear'], help='LR scheduler type')
+    
+    args = parser.parse_args()
+    
+    try:
+        os.makedirs(args.output_dir, exist_ok=True)
+        os.makedirs(args.log_dir, exist_ok=True)
+        os.makedirs('plots', exist_ok=True)
+        
+        logger.info("Starting enhanced training with improved scheduling...")
+        logger.info(f"Data directory: {args.data}")
+        logger.info(f"Output directory: {args.output_dir}")
+        logger.info(f"Learning rate: {args.learning_rate}")
+        logger.info(f"LR floor: {args.lr_floor}")
+        logger.info(f"Use EMA: {args.use_ema}")
+        
+        try:
+            from dataset import MultiFormatDataProcessor, Tokenizer, DataConfig, create_data_loaders
+            from model import DocumentationModel, ModelConfig
+        except ImportError as e:
+            logger.error(f"Failed to import required modules: {e}")
+            logger.error("Make sure all required Python files are in the scripts directory")
+            sys.exit(1)
+        
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        logger.info(f"Using device: {device}")
+        
+        data_path = Path(args.data)
+        texts = []
+        
+        if data_path.is_file():
+            # Single file
+            text = MultiFormatDataProcessor.load_file(data_path)
+            texts = [text] if text.strip() else []
+        elif data_path.is_dir():
+            # Directory of files
+            for file_path in data_path.glob('**/*'):
+                if file_path.is_file() and file_path.suffix.lower() in ['.txt', '.md', '.rst', '.json']:
+                    try:
+                        text = MultiFormatDataProcessor.load_file(file_path)
+                        if text.strip():
+                            texts.append(text)
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+        else:
+            logger.error(f"Data path {args.data} does not exist")
+            sys.exit(1)
+        
+        if not texts:
+            logger.error("No valid texts found in data directory")
+            sys.exit(1)
+            
+        logger.info(f"Loaded {len(texts)} text documents")
+        
+        tokenizer = Tokenizer(vocab_size=8000, use_subword=True)
+        tokenizer.build_vocab(texts)
+        
+        data_config = DataConfig(
+            max_length=256,
+            batch_size=args.batch_size,
+            train_split=0.8,
+            val_split=0.1,
+            test_split=0.1,
+            min_text_length=10,
+            max_text_length=2000
+        )
+        
+        model_config = ModelConfig(
+            vocab_size=tokenizer.vocab_size,
+            d_model=512,
+            nhead=8,
+            num_layers=6,
+            dim_feedforward=2048,
+            max_length=data_config.max_length,
+            dropout=0.1
+        )
+        
+        training_config = ImprovedTrainingConfig(
+            learning_rate=args.learning_rate,
+            lr_floor_ratio=args.lr_floor / args.learning_rate,
+            batch_size=args.batch_size,
+            epochs=args.epochs,
+            use_ema=args.use_ema,
+            label_smoothing=args.label_smoothing,
+            scheduler_type=args.scheduler_type,
+            eval_every=1,
+            save_every=2,
+            log_steps=50
+        )
+        
+        try:
+            train_loader, val_loader, test_loader = create_data_loaders(
+                texts, tokenizer, data_config
+            )
+            logger.info(f"Loaded {len(train_loader)} training batches, {len(val_loader)} validation batches")
+        except Exception as e:
+            logger.error(f"Failed to create data loaders: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            sys.exit(1)
+        
+        model = DocumentationModel(model_config).to(device)
+        logger.info(f"Created model with {sum(p.numel() for p in model.parameters())} parameters")
+        
+        trainer = ImprovedTrainer(
+            model=model,
+            model_config=model_config,
+            training_config=training_config,
+            checkpoint_dir=args.output_dir
+        )
+        
+        history = trainer.train(train_loader, val_loader, test_loader)
+        
+        final_model_path = os.path.join(args.output_dir, 'model.pt')
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'model_config': model_config,
+            'training_config': training_config,
+            'tokenizer': tokenizer,
+            'history': history
+        }, final_model_path)
+        logger.info(f"Saved final model to {final_model_path}")
+        
+        plot_training_curves(history, save_dir='plots')
+        
+        logger.info("Enhanced training completed successfully!")
+        
+    except Exception as e:
+        logger.error(f"Training failed with error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        sys.exit(1)
+
+def plot_training_curves(history: dict, save_dir: str = 'plots'):
+    """Plot and save training curves."""
+    import matplotlib.pyplot as plt
+    
+    os.makedirs(save_dir, exist_ok=True)
+    
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 3, 1)
+    plt.plot(history['train_loss'], label='Train Loss')
+    if 'val_loss' in history and history['val_loss']:
+        plt.plot(history['val_loss'], label='Val Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(1, 3, 2)
+    if 'val_perplexity' in history and history['val_perplexity']:
+        plt.plot(history['val_perplexity'])
+        plt.xlabel('Epoch')
+        plt.ylabel('Perplexity')
+        plt.title('Validation Perplexity')
+        plt.grid(True)
+    
+    plt.subplot(1, 3, 3)
+    plt.plot(history['learning_rate'])
+    plt.xlabel('Epoch')
+    plt.ylabel('Learning Rate')
+    plt.title('Learning Rate Schedule')
+    plt.yscale('log')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'training_curves.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    if 'step_losses' in history and history['step_losses']:
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(history['step_losses'])
+        plt.xlabel('Step')
+        plt.ylabel('Loss')
+        plt.title('Step-level Training Loss')
+        plt.grid(True)
+        
+        plt.subplot(1, 2, 2)
+        plt.plot(history['step_lrs'])
+        plt.xlabel('Step')
+        plt.ylabel('Learning Rate')
+        plt.title('Step-level Learning Rate')
+        plt.yscale('log')
+        plt.grid(True)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_dir, 'step_level_metrics.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    logger.info(f"Training curves saved to {save_dir}")
+
+if __name__ == "__main__":
+    main()

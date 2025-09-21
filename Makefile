@@ -1,4 +1,4 @@
-.PHONY: help install train evaluate generate clean test setup-env infer package lr-test improved-train diagnostics
+.PHONY: help install train evaluate generate clean test setup-env infer package lr-test improved-train diagnostics plot-curves optimize-training quickstart dev-cycle
 
 help:
 	@echo "Documentation-Driven Builder Commands:"
@@ -30,6 +30,9 @@ help:
 	@echo "  make test         - Run basic functionality tests"
 	@echo "  make demo         - Run complete demo workflow"
 	@echo "  make plot-curves  - Plot training curves and diagnostics"
+	@echo "  make optimize-training - Run optimized training workflow"
+	@echo "  make quickstart   - Quickstart for new users"
+	@echo "  make dev-cycle    - Development cycle for iterative improvements"
 
 # Setup commands
 install:
@@ -126,26 +129,47 @@ infer:
 package:
 	python scripts/usage.py package
 
-# plot-curves:
-# 	python -c "
-# 	import matplotlib.pyplot as plt
-# 	import json
-# 	import os
-# 	if os.path.exists('logs/training_log.json'):
-# 		with open('logs/training_log.json') as f:
-# 			data = [json.loads(line) for line in f]
-# 		epochs = [d['epoch'] for d in data]
-# 		losses = [d['loss'] for d in data]
-# 		plt.figure(figsize=(10, 6))
-# 		plt.plot(epochs, losses)
-# 		plt.title('Training Loss')
-# 		plt.xlabel('Epoch')
-# 		plt.ylabel('Loss')
-# 		plt.savefig('plots/training_curves.png')
-# 		print('Training curves saved to plots/training_curves.png')
-# 	else:
-# 		print('No training log found')
-# "
+plot-curves:
+	@echo "Plotting training curves..."
+	@if [ -f "checkpoints/model.pt" ]; then \
+		python -c "\
+import torch; \
+import matplotlib.pyplot as plt; \
+import os; \
+try: \
+    checkpoint = torch.load('checkpoints/model.pt', map_location='cpu'); \
+    history = checkpoint.get('history', {}); \
+    if history: \
+        plt.figure(figsize=(12, 8)); \
+        if 'train_loss' in history: \
+            plt.subplot(2, 2, 1); \
+            plt.plot(history['train_loss'], label='Train Loss'); \
+            if 'val_loss' in history: plt.plot(history['val_loss'], label='Val Loss'); \
+            plt.xlabel('Epoch'); plt.ylabel('Loss'); plt.title('Training Loss'); plt.legend(); plt.grid(True); \
+        if 'val_perplexity' in history: \
+            plt.subplot(2, 2, 2); \
+            plt.plot(history['val_perplexity']); \
+            plt.xlabel('Epoch'); plt.ylabel('Perplexity'); plt.title('Validation Perplexity'); plt.grid(True); \
+        if 'learning_rate' in history: \
+            plt.subplot(2, 2, 3); \
+            plt.plot(history['learning_rate']); \
+            plt.xlabel('Epoch'); plt.ylabel('Learning Rate'); plt.title('Learning Rate Schedule'); plt.yscale('log'); plt.grid(True); \
+        if 'step_losses' in history: \
+            plt.subplot(2, 2, 4); \
+            plt.plot(history['step_losses'], alpha=0.7); \
+            plt.xlabel('Step'); plt.ylabel('Loss'); plt.title('Step-wise Training Loss'); plt.grid(True); \
+        plt.tight_layout(); \
+        os.makedirs('plots', exist_ok=True); \
+        plt.savefig('plots/training_curves.png', dpi=300, bbox_inches='tight'); \
+        print('Training curves saved to plots/training_curves.png'); \
+    else: \
+        print('No training history found in checkpoint'); \
+except Exception as e: \
+    print(f'Error plotting curves: {e}'); \
+"; \
+	else \
+		echo "No model checkpoint found at checkpoints/model.pt"; \
+	fi
 
 # Utility commands
 clean:
