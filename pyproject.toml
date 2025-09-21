@@ -1,0 +1,24 @@
+[project]
+name = "doc-driven-builder"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "DennisRono",email = "dennisrkibet@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "torch (>=2.8.0,<3.0.0)",
+    "markdown (>=3.9,<4.0)",
+    "numpy (>=2.3.3,<3.0.0)",
+    "transformers (>=4.56.2,<5.0.0)",
+    "sentencepiece (>=0.2.1,<0.3.0)",
+    "tqdm (>=4.67.1,<5.0.0)",
+    "matplotlib (>=3.10.6,<4.0.0)",
+    "seaborn (>=0.13.2,<0.14.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

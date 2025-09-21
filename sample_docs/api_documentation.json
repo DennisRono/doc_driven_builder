@@ -1,0 +1,76 @@
+{
+  "api_name": "Neural Network API",
+  "version": "1.0.0",
+  "description": "RESTful API for neural network operations",
+  "endpoints": [
+    {
+      "path": "/models",
+      "method": "GET",
+      "description": "List all available models",
+      "parameters": [],
+      "response": {
+        "type": "array",
+        "items": {
+          "model_id": "string",
+          "model_name": "string",
+          "architecture": "string",
+          "parameters": "integer"
+        }
+      }
+    },
+    {
+      "path": "/models/{model_id}/train",
+      "method": "POST",
+      "description": "Start training a model",
+      "parameters": [
+        {
+          "name": "model_id",
+          "type": "string",
+          "location": "path",
+          "required": true
+        },
+        {
+          "name": "training_config",
+          "type": "object",
+          "location": "body",
+          "required": true,
+          "properties": {
+            "epochs": "integer",
+            "batch_size": "integer",
+            "learning_rate": "float",
+            "optimizer": "string"
+          }
+        }
+      ]
+    },
+    {
+      "path": "/models/{model_id}/predict",
+      "method": "POST",
+      "description": "Make predictions using a trained model",
+      "parameters": [
+        {
+          "name": "model_id",
+          "type": "string",
+          "location": "path",
+          "required": true
+        },
+        {
+          "name": "input_data",
+          "type": "array",
+          "location": "body",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "authentication": {
+    "type": "bearer_token",
+    "description": "Include Bearer token in Authorization header"
+  },
+  "error_codes": {
+    "400": "Bad Request - Invalid input parameters",
+    "401": "Unauthorized - Invalid or missing authentication",
+    "404": "Not Found - Model or resource not found",
+    "500": "Internal Server Error - Server processing error"
+  }
+}

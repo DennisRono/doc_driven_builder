@@ -1,0 +1,6 @@
+.venv/
+.env
+output/
+checkpoints/
+debug_checkpoints/
+logs/
